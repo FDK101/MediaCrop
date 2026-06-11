@@ -109,6 +109,7 @@ object VideoProcessor {
             val cfgAttribs = intArrayOf(
                 EGL14.EGL_RED_SIZE, 8, EGL14.EGL_GREEN_SIZE, 8, EGL14.EGL_BLUE_SIZE, 8,
                 EGL14.EGL_ALPHA_SIZE, 8, EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
+                EGLExt.EGL_RECORDABLE_ANDROID, 1,
                 EGL14.EGL_NONE
             )
             val eglCfgs = arrayOfNulls<android.opengl.EGLConfig>(1)
@@ -117,7 +118,7 @@ object VideoProcessor {
                 eglDisplay, eglCfgs[0], EGL14.EGL_NO_CONTEXT,
                 intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE), 0
             )
-            val winAttribs = intArrayOf(EGLExt.EGL_RECORDABLE_ANDROID, 1, EGL14.EGL_NONE)
+            val winAttribs = intArrayOf(EGL14.EGL_NONE)
             val eglSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglCfgs[0], encSurface, winAttribs, 0)
             EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglCtx)
 
@@ -151,10 +152,13 @@ object VideoProcessor {
             // Full-screen quad (TRIANGLE_STRIP: bl, br, tl, tr)
             val quadVerts = buf(floatArrayOf(-1f, -1f, 1f, -1f, -1f, 1f, 1f, 1f))
 
-            // UV coords map the crop region (display-space 0-1) onto the quad
+            // UV coords map the crop region onto the quad.
+            // CropRect uses display convention (v=0 at top); GL/ST expects v=0 at bottom,
+            // so invert v: GL_v = 1 - display_v.
             val u0 = cropRect.left;  val u1 = cropRect.right
-            val v0 = cropRect.top;   val v1 = cropRect.bottom
-            val quadUV = buf(floatArrayOf(u0, v1, u1, v1, u0, v0, u1, v0))
+            val v0 = 1f - cropRect.bottom   // GL v for display-bottom of crop
+            val v1 = 1f - cropRect.top      // GL v for display-top of crop
+            val quadUV = buf(floatArrayOf(u0, v0, u1, v0, u0, v1, u1, v1))
 
             // ── Decoder ───────────────────────────────────────────────────────
             val decoder = MediaCodec.createDecoderByType(mime)

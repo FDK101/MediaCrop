@@ -51,6 +51,7 @@ fun EditorScreen(
             setMediaItem(MediaItem.fromUri(info.uri))
             repeatMode = Player.REPEAT_MODE_OFF
             playWhenReady = false
+            volume = 0f
             prepare()
         }
     }
