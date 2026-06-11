@@ -56,11 +56,9 @@ fun EditorScreen(
         }
     }
 
-    // Sync trim start position when play begins
-    LaunchedEffect(viewModel.trimStartMs) {
-        if (!exoPlayer.isPlaying) {
-            exoPlayer.seekTo(viewModel.trimStartMs)
-        }
+    // Seek to default start when a new video is loaded
+    LaunchedEffect(info.uri) {
+        exoPlayer.seekTo(viewModel.trimStartMs)
     }
 
     // Track playback position
@@ -273,7 +271,6 @@ fun EditorScreen(
                             val pos = viewModel.currentPositionMs
                                 .coerceIn(0L, (viewModel.trimEndMs - 33L).coerceAtLeast(0L))
                             viewModel.setTrimStart(pos)
-                            exoPlayer.seekTo(pos)
                         },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
@@ -309,7 +306,6 @@ fun EditorScreen(
                     currentPositionMs = viewModel.currentPositionMs,
                     onTrimStartChanged = { ms ->
                         viewModel.setTrimStart(ms)
-                        exoPlayer.seekTo(ms)
                     },
                     onTrimEndChanged = { ms ->
                         viewModel.setTrimEnd(ms)
