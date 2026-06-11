@@ -2,6 +2,7 @@ package com.videocrop.processor
 
 import android.content.ContentValues
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -12,12 +13,14 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.effect.Crop
 import androidx.media3.effect.Presentation
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
+import androidx.media3.transformer.VideoEncoderSettings
 import com.videocrop.viewmodel.CropRect
 import com.videocrop.viewmodel.VideoInfo
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +52,20 @@ object VideoProcessor {
         val tempFile = File(context.cacheDir, fileName)
 
         val (outputWidth, outputHeight) = calculateOutputSize(videoInfo, cropRect)
+
+        // Read source bitrate so the encoder matches source quality.
+        // Falls back to 20 Mbps if metadata is unavailable.
+        val sourceBitrate: Int = try {
+            MediaMetadataRetriever().use { r ->
+                r.setDataSource(context, videoInfo.uri)
+                r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
+                    ?.toIntOrNull()
+                    ?.coerceIn(4_000_000, 80_000_000)
+                    ?: 20_000_000
+            }
+        } catch (e: Exception) {
+            20_000_000
+        }
 
         val leftNdc = cropRect.left * 2f - 1f
         val rightNdc = cropRect.right * 2f - 1f
@@ -102,8 +119,17 @@ object VideoProcessor {
         }
 
         withContext(Dispatchers.Main) {
+            val encoderFactory = DefaultEncoderFactory.Builder(context)
+                .setRequestedVideoEncoderSettings(
+                    VideoEncoderSettings.Builder()
+                        .setBitrate(sourceBitrate)
+                        .build()
+                )
+                .build()
+
             transformer = Transformer.Builder(context)
                 .setVideoMimeType(MimeTypes.VIDEO_H264)
+                .setEncoderFactory(encoderFactory)
                 .addListener(listener)
                 .build()
                 .also { t ->
@@ -163,7 +189,7 @@ object VideoProcessor {
         val cropW = ((cropRect.right - cropRect.left) * videoInfo.displayWidth).toInt()
         val cropH = ((cropRect.bottom - cropRect.top) * videoInfo.displayHeight).toInt()
 
-        val maxDim = 1920
+        val maxDim = 3840
         val scale = minOf(1f, minOf(maxDim.toFloat() / cropW, maxDim.toFloat() / cropH))
         val outW = (cropW * scale).toInt().roundToEven()
         val outH = (cropH * scale).toInt().roundToEven()
