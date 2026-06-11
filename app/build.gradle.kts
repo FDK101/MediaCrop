@@ -55,6 +55,6 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.common)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.mobile.ffmpeg.min)
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
     debugImplementation(libs.androidx.ui.tooling)
 }

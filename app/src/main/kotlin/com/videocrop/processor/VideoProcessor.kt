@@ -7,8 +7,8 @@ import android.os.Build
 import android.os.Environment
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
-import com.arthenica.mobileffmpeg.Config
-import com.arthenica.mobileffmpeg.MobileFFmpeg
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.ReturnCode
 import com.videocrop.viewmodel.CropRect
 import com.videocrop.viewmodel.VideoInfo
 import kotlinx.coroutines.channels.awaitClose
@@ -60,32 +60,46 @@ object VideoProcessor {
         val startSec = startMs / 1000.0
         val durationSec = durationMs / 1000.0
 
-        Config.enableStatisticsCallback { stats ->
-            val progress = (stats.time.toFloat() / durationMs).coerceIn(0f, 1f)
-            trySend(ProcessingState.Progress(progress))
-        }
-
         // libx264 CRF 20 = visually lossless, hardware-independent quality
-        val command = "-y -ss $startSec -i $inputPath -t $durationSec " +
-                "-vf crop=$cropW:$cropH:$cropX:$cropY " +
-                "-c:v libx264 -crf 20 -preset veryfast -an -movflags +faststart " +
-                tempFile.absolutePath
+        val args = arrayOf(
+            "-y",
+            "-ss", startSec.toString(),
+            "-i", inputPath,
+            "-t", durationSec.toString(),
+            "-vf", "crop=$cropW:$cropH:$cropX:$cropY",
+            "-c:v", "libx264",
+            "-crf", "20",
+            "-preset", "veryfast",
+            "-an",
+            "-movflags", "+faststart",
+            tempFile.absolutePath
+        )
 
-        val executionId = MobileFFmpeg.executeAsync(command) { _, returnCode ->
-            pfd.close()
-            if (returnCode == 0) { // RETURN_CODE_SUCCESS
-                val savedPath = saveToPublicStorage(context, tempFile, fileName)
-                tempFile.delete()
-                trySend(ProcessingState.Completed(savedPath))
-            } else {
-                tempFile.delete()
-                trySend(ProcessingState.Failed("Export failed (code $returnCode)"))
+        val session = FFmpegKit.executeWithArgumentsAsync(
+            args,
+            { completed ->
+                pfd.close()
+                if (ReturnCode.isSuccess(completed.returnCode)) {
+                    val savedPath = saveToPublicStorage(context, tempFile, fileName)
+                    tempFile.delete()
+                    trySend(ProcessingState.Completed(savedPath))
+                } else {
+                    tempFile.delete()
+                    trySend(ProcessingState.Failed(
+                        completed.failStackTrace ?: "Export failed"
+                    ))
+                }
+                close()
+            },
+            null,
+            { stats ->
+                val progress = (stats.time.toFloat() / durationMs).coerceIn(0f, 1f)
+                trySend(ProcessingState.Progress(progress))
             }
-            close()
-        }
+        )
 
         awaitClose {
-            MobileFFmpeg.cancel(executionId)
+            session?.cancel()
             try { pfd.close() } catch (_: Exception) {}
         }
     }
