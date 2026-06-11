@@ -53,9 +53,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
-    implementation(libs.media3.transformer)
-    implementation(libs.media3.effect)
     implementation(libs.media3.common)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.ffmpeg.kit.min)
     debugImplementation(libs.androidx.ui.tooling)
 }

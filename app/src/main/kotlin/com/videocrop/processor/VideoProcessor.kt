@@ -2,34 +2,18 @@ package com.videocrop.processor
 
 import android.content.ContentValues
 import android.content.Context
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
-import androidx.media3.common.Effect
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
-import androidx.media3.effect.Crop
-import androidx.media3.effect.Presentation
-import androidx.media3.transformer.Composition
-import androidx.media3.transformer.DefaultEncoderFactory
-import androidx.media3.transformer.EditedMediaItem
-import androidx.media3.transformer.Effects
-import androidx.media3.transformer.ExportException
-import androidx.media3.transformer.ExportResult
-import androidx.media3.transformer.ProgressHolder
-import androidx.media3.transformer.Transformer
-import androidx.media3.transformer.VideoEncoderSettings
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.ReturnCode
 import com.videocrop.viewmodel.CropRect
 import com.videocrop.viewmodel.VideoInfo
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 
 sealed class ProcessingState {
@@ -48,109 +32,79 @@ object VideoProcessor {
         endMs: Long
     ): Flow<ProcessingState> = callbackFlow {
         val timestamp = System.currentTimeMillis()
-        val fileName = "VideoCrop_$timestamp.mp4"
+        val fileName = "MediaCrop_$timestamp.mp4"
         val tempFile = File(context.cacheDir, fileName)
+        val durationMs = (endMs - startMs).coerceAtLeast(1L)
 
-        val (outputWidth, outputHeight) = calculateOutputSize(videoInfo, cropRect)
-
-        // Read source bitrate so the encoder matches source quality.
-        // Falls back to 20 Mbps if metadata is unavailable.
-        val sourceBitrate: Int = try {
-            MediaMetadataRetriever().use { r ->
-                r.setDataSource(context, videoInfo.uri)
-                r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
-                    ?.toIntOrNull()
-                    ?.coerceIn(4_000_000, 80_000_000)
-                    ?: 20_000_000
-            }
+        // Open file descriptor for the input URI so FFmpegKit can read it
+        val pfd: ParcelFileDescriptor? = try {
+            context.contentResolver.openFileDescriptor(videoInfo.uri, "r")
         } catch (e: Exception) {
-            20_000_000
+            trySend(ProcessingState.Failed("Cannot open video: ${e.message}"))
+            close()
+            return@callbackFlow
+        }
+        if (pfd == null) {
+            trySend(ProcessingState.Failed("Cannot open video file"))
+            close()
+            return@callbackFlow
         }
 
-        val leftNdc = cropRect.left * 2f - 1f
-        val rightNdc = cropRect.right * 2f - 1f
-        val topNdc = 1f - cropRect.top * 2f
-        val bottomNdc = 1f - cropRect.bottom * 2f
+        // /proc/self/fd/<n> gives FFmpeg a real file path for any content URI
+        val inputPath = "/proc/self/fd/${pfd.fd}"
 
-        val videoEffects = mutableListOf<Effect>()
-        videoEffects.add(Crop(leftNdc, rightNdc, bottomNdc, topNdc))
-        videoEffects.add(
-            Presentation.createForWidthAndHeight(
-                outputWidth, outputHeight,
-                Presentation.LAYOUT_SCALE_TO_FIT
-            )
+        // Crop pixel coordinates in display-orientation space.
+        // FFmpeg auto-applies the video rotation from metadata, so we use display dimensions.
+        val cropX = (cropRect.left * videoInfo.displayWidth).toInt()
+        val cropY = (cropRect.top * videoInfo.displayHeight).toInt()
+        val cropW = ((cropRect.right - cropRect.left) * videoInfo.displayWidth).toInt().roundToEven()
+        val cropH = ((cropRect.bottom - cropRect.top) * videoInfo.displayHeight).toInt().roundToEven()
+
+        val startSec = startMs / 1000.0
+        val durationSec = durationMs / 1000.0
+
+        // libx264 CRF 20 = visually lossless, hardware-independent quality.
+        // Input -ss for fast seeking; -t sets output duration.
+        val args = arrayOf(
+            "-y",
+            "-ss", startSec.toString(),
+            "-i", inputPath,
+            "-t", durationSec.toString(),
+            "-vf", "crop=$cropW:$cropH:$cropX:$cropY",
+            "-c:v", "libx264",
+            "-crf", "20",
+            "-preset", "veryfast",
+            "-an",
+            "-movflags", "+faststart",
+            tempFile.absolutePath
         )
-        val effects = Effects(emptyList(), videoEffects)
 
-        val clippingConfig = MediaItem.ClippingConfiguration.Builder()
-            .setStartPositionMs(startMs)
-            .setEndPositionMs(endMs)
-            .build()
-
-        val mediaItem = MediaItem.Builder()
-            .setUri(videoInfo.uri)
-            .setClippingConfiguration(clippingConfig)
-            .build()
-
-        val editedMediaItem = EditedMediaItem.Builder(mediaItem)
-            .setRemoveAudio(true)
-            .setEffects(effects)
-            .build()
-
-        var transformer: Transformer? = null
-
-        val listener = object : Transformer.Listener {
-            override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                val savedPath = saveToPublicStorage(context, tempFile, fileName)
-                tempFile.delete()
-                trySend(ProcessingState.Completed(savedPath))
-                close()
-            }
-
-            override fun onError(
-                composition: Composition,
-                exportResult: ExportResult,
-                exportException: ExportException
-            ) {
-                tempFile.delete()
-                trySend(ProcessingState.Failed(exportException.message ?: "Export failed"))
-                close()
-            }
-        }
-
-        withContext(Dispatchers.Main) {
-            val encoderFactory = DefaultEncoderFactory.Builder(context)
-                .setRequestedVideoEncoderSettings(
-                    VideoEncoderSettings.Builder()
-                        .setBitrate(sourceBitrate)
-                        .build()
-                )
-                .build()
-
-            transformer = Transformer.Builder(context)
-                .setVideoMimeType(MimeTypes.VIDEO_H264)
-                .setEncoderFactory(encoderFactory)
-                .addListener(listener)
-                .build()
-                .also { t ->
-                    t.start(editedMediaItem, tempFile.absolutePath)
+        val session = FFmpegKit.executeWithArgumentsAsync(
+            args,
+            { completed ->
+                pfd.close()
+                if (ReturnCode.isSuccess(completed.returnCode)) {
+                    val savedPath = saveToPublicStorage(context, tempFile, fileName)
+                    tempFile.delete()
+                    trySend(ProcessingState.Completed(savedPath))
+                } else {
+                    tempFile.delete()
+                    trySend(ProcessingState.Failed(
+                        completed.failStackTrace ?: completed.allLogsAsString ?: "Export failed"
+                    ))
                 }
-        }
-
-        launch {
-            val progressHolder = ProgressHolder()
-            while (!isClosedForSend) {
-                delay(200)
-                transformer?.getProgress(progressHolder)
-                val p = progressHolder.progress
-                if (p >= 0) {
-                    trySend(ProcessingState.Progress(p / 100f))
-                }
+                close()
+            },
+            null,
+            { stats ->
+                val progress = (stats.time.toFloat() / durationMs).coerceIn(0f, 1f)
+                trySend(ProcessingState.Progress(progress))
             }
-        }
+        )
 
         awaitClose {
-            transformer?.cancel()
+            session?.cancel()
+            try { pfd.close() } catch (_: Exception) {}
         }
     }
 
@@ -180,20 +134,11 @@ object VideoProcessor {
             moviesDir.mkdirs()
             val destFile = File(moviesDir, fileName)
             tempFile.copyTo(destFile, overwrite = true)
-            android.media.MediaScannerConnection.scanFile(context, arrayOf(destFile.absolutePath), arrayOf("video/mp4"), null)
+            android.media.MediaScannerConnection.scanFile(
+                context, arrayOf(destFile.absolutePath), arrayOf("video/mp4"), null
+            )
             destFile.absolutePath
         }
-    }
-
-    private fun calculateOutputSize(videoInfo: VideoInfo, cropRect: CropRect): Pair<Int, Int> {
-        val cropW = ((cropRect.right - cropRect.left) * videoInfo.displayWidth).toInt()
-        val cropH = ((cropRect.bottom - cropRect.top) * videoInfo.displayHeight).toInt()
-
-        val maxDim = 3840
-        val scale = minOf(1f, minOf(maxDim.toFloat() / cropW, maxDim.toFloat() / cropH))
-        val outW = (cropW * scale).toInt().roundToEven()
-        val outH = (cropH * scale).toInt().roundToEven()
-        return outW to outH
     }
 
     private fun Int.roundToEven() = if (this % 2 == 0) this else this + 1
