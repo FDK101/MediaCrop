@@ -55,6 +55,15 @@ fun TrimControls(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Playback position controls
+        TimeAdjustRow(
+            label = "PLAY",
+            timeMs = currentPositionMs,
+            onAdjust = { delta -> onSeek((currentPositionMs + delta).coerceIn(0L, durationMs)) }
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
         // Start time controls
         TimeAdjustRow(
             label = "IN",
