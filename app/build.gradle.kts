@@ -55,6 +55,6 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.common)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.ffmpeg.kit.min)
+    implementation(libs.mobile.ffmpeg.min)
     debugImplementation(libs.androidx.ui.tooling)
 }

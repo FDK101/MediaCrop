@@ -7,8 +7,8 @@ import android.os.Build
 import android.os.Environment
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.ReturnCode
+import com.arthenica.mobileffmpeg.Config
+import com.arthenica.mobileffmpeg.MobileFFmpeg
 import com.videocrop.viewmodel.CropRect
 import com.videocrop.viewmodel.VideoInfo
 import kotlinx.coroutines.channels.awaitClose
@@ -36,7 +36,6 @@ object VideoProcessor {
         val tempFile = File(context.cacheDir, fileName)
         val durationMs = (endMs - startMs).coerceAtLeast(1L)
 
-        // Open file descriptor for the input URI so FFmpegKit can read it
         val pfd: ParcelFileDescriptor? = try {
             context.contentResolver.openFileDescriptor(videoInfo.uri, "r")
         } catch (e: Exception) {
@@ -53,8 +52,6 @@ object VideoProcessor {
         // /proc/self/fd/<n> gives FFmpeg a real file path for any content URI
         val inputPath = "/proc/self/fd/${pfd.fd}"
 
-        // Crop pixel coordinates in display-orientation space.
-        // FFmpeg auto-applies the video rotation from metadata, so we use display dimensions.
         val cropX = (cropRect.left * videoInfo.displayWidth).toInt()
         val cropY = (cropRect.top * videoInfo.displayHeight).toInt()
         val cropW = ((cropRect.right - cropRect.left) * videoInfo.displayWidth).toInt().roundToEven()
@@ -63,47 +60,32 @@ object VideoProcessor {
         val startSec = startMs / 1000.0
         val durationSec = durationMs / 1000.0
 
-        // libx264 CRF 20 = visually lossless, hardware-independent quality.
-        // Input -ss for fast seeking; -t sets output duration.
-        val args = arrayOf(
-            "-y",
-            "-ss", startSec.toString(),
-            "-i", inputPath,
-            "-t", durationSec.toString(),
-            "-vf", "crop=$cropW:$cropH:$cropX:$cropY",
-            "-c:v", "libx264",
-            "-crf", "20",
-            "-preset", "veryfast",
-            "-an",
-            "-movflags", "+faststart",
-            tempFile.absolutePath
-        )
+        Config.enableStatisticsCallback { stats ->
+            val progress = (stats.time.toFloat() / durationMs).coerceIn(0f, 1f)
+            trySend(ProcessingState.Progress(progress))
+        }
 
-        val session = FFmpegKit.executeWithArgumentsAsync(
-            args,
-            { completed ->
-                pfd.close()
-                if (ReturnCode.isSuccess(completed.returnCode)) {
-                    val savedPath = saveToPublicStorage(context, tempFile, fileName)
-                    tempFile.delete()
-                    trySend(ProcessingState.Completed(savedPath))
-                } else {
-                    tempFile.delete()
-                    trySend(ProcessingState.Failed(
-                        completed.failStackTrace ?: completed.allLogsAsString ?: "Export failed"
-                    ))
-                }
-                close()
-            },
-            null,
-            { stats ->
-                val progress = (stats.time.toFloat() / durationMs).coerceIn(0f, 1f)
-                trySend(ProcessingState.Progress(progress))
+        // libx264 CRF 20 = visually lossless, hardware-independent quality
+        val command = "-y -ss $startSec -i $inputPath -t $durationSec " +
+                "-vf crop=$cropW:$cropH:$cropX:$cropY " +
+                "-c:v libx264 -crf 20 -preset veryfast -an -movflags +faststart " +
+                tempFile.absolutePath
+
+        val executionId = MobileFFmpeg.executeAsync(command) { _, returnCode ->
+            pfd.close()
+            if (returnCode == 0) { // RETURN_CODE_SUCCESS
+                val savedPath = saveToPublicStorage(context, tempFile, fileName)
+                tempFile.delete()
+                trySend(ProcessingState.Completed(savedPath))
+            } else {
+                tempFile.delete()
+                trySend(ProcessingState.Failed("Export failed (code $returnCode)"))
             }
-        )
+            close()
+        }
 
         awaitClose {
-            session?.cancel()
+            MobileFFmpeg.cancel(executionId)
             try { pfd.close() } catch (_: Exception) {}
         }
     }
