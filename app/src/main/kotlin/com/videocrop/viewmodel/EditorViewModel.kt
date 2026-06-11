@@ -160,7 +160,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val info = videoInfo ?: return
         exportState = ExportState.Exporting(0f)
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             VideoProcessor.process(
                 context = context,
                 videoInfo = info,
