@@ -251,7 +251,8 @@ object VideoProcessor {
                     }
                     eIdx >= 0 -> {
                         if ((encInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) encoderEOS = true
-                        if (muxStarted && encInfo.size > 0) {
+                        val isConfig = (encInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0
+                        if (muxStarted && encInfo.size > 0 && !isConfig) {
                             val outBuf = encoder.getOutputBuffer(eIdx)!!
                             outBuf.position(encInfo.offset)
                             outBuf.limit(encInfo.offset + encInfo.size)
