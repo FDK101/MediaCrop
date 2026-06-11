@@ -55,6 +55,5 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.common)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
     debugImplementation(libs.androidx.ui.tooling)
 }
