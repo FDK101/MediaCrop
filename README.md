@@ -73,7 +73,7 @@ For a release build you will need to supply your own signing keystore and update
 |---|---|
 | UI | Jetpack Compose (Material 3) |
 | Video playback | Media3 ExoPlayer |
-| Video processing | Media3 Transformer |
+| Video processing | FFmpegKit (libx264 CRF 20) |
 | Architecture | ViewModel + StateFlow |
 | Storage | MediaStore API (API 29+), legacy `getExternalStoragePublicDirectory` (API 26–28) |
 
@@ -85,7 +85,7 @@ For a release build you will need to supply your own signing keystore and update
 app/src/main/kotlin/com/videocrop/
 ├── MainActivity.kt                  # Single-activity host, screen routing
 ├── processor/
-│   ├── VideoProcessor.kt            # Media3 Transformer crop + trim pipeline
+│   ├── VideoProcessor.kt            # FFmpegKit libx264 crop + trim pipeline
 │   └── ImageProcessor.kt            # Bitmap crop + JPEG save
 ├── ui/
 │   ├── HomeScreen.kt                # Launcher: select video or image, default IN time
@@ -103,7 +103,7 @@ app/src/main/kotlin/com/videocrop/
 
 ## How the crop works
 
-The crop overlay draws directly on a `Canvas` that fills the same space as the video/image. It computes the letterbox/pillarbox bounds from the media's native dimensions and maps touch events to normalised 0–1 crop coordinates. Those fractions are passed to Media3's `Crop` effect (for video) or `Bitmap.createBitmap` (for images) at export time.
+The crop overlay draws directly on a `Canvas` that fills the same space as the video/image. It computes the letterbox/pillarbox bounds from the media's native dimensions and maps touch events to normalised 0–1 crop coordinates. Those fractions are passed to FFmpegKit's `crop` filter (for video) or `Bitmap.createBitmap` (for images) at export time.
 
 Long-press is intentionally disabled on the crop window — the gesture handler cancels any touch that does not exceed the slop threshold within 200 ms, which is well below Android's haptic long-press threshold of ~500 ms.
 
