@@ -1,0 +1,10 @@
+<Window x:Class="MediaCrop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Media Crop"
+        MinWidth="800" MinHeight="680"
+        Width="1000" Height="780"
+        WindowStartupLocation="CenterScreen"
+        Background="#0F0F0F">
+    <ContentControl x:Name="MainContent" Focusable="False"/>
+</Window>

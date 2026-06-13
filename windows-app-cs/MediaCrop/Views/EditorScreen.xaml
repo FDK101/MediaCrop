@@ -1,0 +1,111 @@
+<UserControl x:Class="MediaCrop.Views.EditorScreen"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctrl="clr-namespace:MediaCrop.Controls"
+             Background="#0F0F0F">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Top bar -->
+            <RowDefinition Height="48"/>
+            <!-- Video preview (55%) -->
+            <RowDefinition Height="55*"/>
+            <!-- Controls panel (45%) -->
+            <RowDefinition Height="45*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top bar -->
+        <Border Grid.Row="0" Background="#262626">
+            <DockPanel Margin="8,4,16,4" LastChildFill="False">
+                <Button x:Name="BtnBack"
+                        Content="← Back"
+                        Style="{StaticResource BackButton}"
+                        DockPanel.Dock="Left"
+                        Click="BtnBack_Click"/>
+                <TextBlock x:Name="InfoLabel"
+                           DockPanel.Dock="Right"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="#9CA3AF"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Video preview -->
+        <ctrl:VideoPreviewControl x:Name="Preview"
+                                  Grid.Row="1"/>
+
+        <!-- Controls scroll panel -->
+        <ScrollViewer Grid.Row="2"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Background="#0F0F0F">
+            <StackPanel Margin="12,10,12,16">
+
+                <!-- Preset buttons -->
+                <UniformGrid x:Name="PresetGrid" Rows="1" Margin="0,0,0,8">
+                    <Button x:Name="Btn916"    Content="9:16"      Margin="2,0" Click="OnPreset916"/>
+                    <Button x:Name="BtnSquare" Content="■ Square"  Margin="2,0" Click="OnPresetSquare"/>
+                    <Button x:Name="Btn169"    Content="16:9"      Margin="2,0" Click="OnPreset169"/>
+                    <Button x:Name="BtnAdb"    Content="📱 ADB"    Margin="2,0" Style="{StaticResource AdbButton}" Click="OnPresetAdb"/>
+                </UniformGrid>
+
+                <!-- Divider -->
+                <Border Height="1" Background="#262626" Margin="0,2,0,10"/>
+
+                <!-- Playback controls -->
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,8">
+                    <Button x:Name="BtnPrev"
+                            Content="⏮"
+                            Style="{StaticResource IconButton}"
+                            ToolTip="Jump to IN"
+                            Click="BtnPrev_Click"
+                            Margin="4,0"/>
+                    <Button x:Name="BtnPlay"
+                            Content="▶"
+                            Style="{StaticResource PlayButton}"
+                            Click="BtnPlay_Click"
+                            Margin="8,0"/>
+                    <Button x:Name="BtnNext"
+                            Content="⏭"
+                            Style="{StaticResource IconButton}"
+                            ToolTip="Jump to OUT"
+                            Click="BtnNext_Click"
+                            Margin="4,0"/>
+                </StackPanel>
+
+                <!-- Set IN / Set OUT -->
+                <Grid Margin="0,0,0,8">
+                    <Button x:Name="BtnSetIn"
+                            Content="◀ Set IN here"
+                            Style="{StaticResource SetMarkButton}"
+                            HorizontalAlignment="Left"
+                            Click="BtnSetIn_Click"/>
+                    <Button x:Name="BtnSetOut"
+                            Content="Set OUT here ▶"
+                            Style="{StaticResource SetMarkButton}"
+                            HorizontalAlignment="Right"
+                            Click="BtnSetOut_Click"/>
+                </Grid>
+
+                <!-- Divider -->
+                <Border Height="1" Background="#262626" Margin="0,2,0,10"/>
+
+                <!-- Trim controls -->
+                <ctrl:TrimControlsPanel x:Name="TrimPanel"/>
+
+                <!-- Divider -->
+                <Border Height="1" Background="#262626" Margin="0,10,0,10"/>
+
+                <!-- Export button -->
+                <Button x:Name="BtnExport"
+                        Content="⬇  Export Video"
+                        Style="{StaticResource PrimaryButton}"
+                        Click="BtnExport_Click"/>
+
+            </StackPanel>
+        </ScrollViewer>
+
+    </Grid>
+</UserControl>

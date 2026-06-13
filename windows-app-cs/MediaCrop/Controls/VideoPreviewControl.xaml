@@ -1,0 +1,17 @@
+<UserControl x:Class="MediaCrop.Controls.VideoPreviewControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctrl="clr-namespace:MediaCrop.Controls"
+             Background="Black"
+             MinWidth="320" MinHeight="240">
+    <Grid x:Name="PreviewGrid">
+        <MediaElement x:Name="Player"
+                      LoadedBehavior="Manual"
+                      Volume="0"
+                      Stretch="Uniform"
+                      ScrubbingEnabled="True"
+                      MediaOpened="Player_MediaOpened"
+                      MediaFailed="Player_MediaFailed"/>
+        <ctrl:CropOverlayElement x:Name="Overlay"/>
+    </Grid>
+</UserControl>

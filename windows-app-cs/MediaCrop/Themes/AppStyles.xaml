@@ -1,0 +1,146 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Base button control template (removes default chrome) -->
+    <ControlTemplate x:Key="FlatButtonTemplate" TargetType="Button">
+        <Border x:Name="bd"
+                Background="{TemplateBinding Background}"
+                CornerRadius="{TemplateBinding Tag}"
+                Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Opacity" Value="0.7"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- Default button -->
+    <Style TargetType="Button">
+        <Setter Property="Background"   Value="#262626"/>
+        <Setter Property="Foreground"   Value="#F5F5F5"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding"      Value="10,5"/>
+        <Setter Property="MinHeight"    Value="28"/>
+        <Setter Property="FontSize"     Value="13"/>
+        <Setter Property="Cursor"       Value="Hand"/>
+        <Setter Property="Tag"          Value="8"/>
+        <Setter Property="FontFamily"   Value="Segoe UI"/>
+        <Setter Property="Template"     Value="{StaticResource FlatButtonTemplate}"/>
+    </Style>
+
+    <!-- Primary (indigo) -->
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background"  Value="#6366F1"/>
+        <Setter Property="Foreground"  Value="White"/>
+        <Setter Property="FontWeight"  Value="Bold"/>
+        <Setter Property="FontSize"    Value="14"/>
+        <Setter Property="MinHeight"   Value="44"/>
+        <Setter Property="Tag"         Value="12"/>
+    </Style>
+
+    <!-- Preset (inactive) -->
+    <Style x:Key="PresetButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background"  Value="#262626"/>
+        <Setter Property="Foreground"  Value="#9CA3AF"/>
+        <Setter Property="FontSize"    Value="12"/>
+        <Setter Property="Padding"     Value="12,5"/>
+        <Setter Property="Tag"         Value="8"/>
+    </Style>
+
+    <!-- Preset (active) -->
+    <Style x:Key="PresetButtonActive" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background"  Value="#6366F1"/>
+        <Setter Property="Foreground"  Value="White"/>
+        <Setter Property="FontSize"    Value="12"/>
+        <Setter Property="Padding"     Value="12,5"/>
+        <Setter Property="Tag"         Value="8"/>
+    </Style>
+
+    <!-- Adjust (transparent + indigo text) -->
+    <Style x:Key="AdjustButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background"  Value="Transparent"/>
+        <Setter Property="Foreground"  Value="#6366F1"/>
+        <Setter Property="FontSize"    Value="11"/>
+        <Setter Property="MinHeight"   Value="0"/>
+        <Setter Property="Padding"     Value="2,2"/>
+        <Setter Property="Tag"         Value="4"/>
+    </Style>
+
+    <!-- Icon (transparent, large) -->
+    <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background"  Value="Transparent"/>
+        <Setter Property="Foreground"  Value="#E5E5E5"/>
+        <Setter Property="FontSize"    Value="18"/>
+        <Setter Property="Width"       Value="44"/>
+        <Setter Property="Height"      Value="44"/>
+        <Setter Property="Tag"         Value="22"/>
+        <Setter Property="Padding"     Value="0"/>
+    </Style>
+
+    <!-- Play (round indigo) -->
+    <Style x:Key="PlayButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background"  Value="#6366F1"/>
+        <Setter Property="Foreground"  Value="White"/>
+        <Setter Property="FontSize"    Value="20"/>
+        <Setter Property="FontWeight"  Value="Bold"/>
+        <Setter Property="Width"       Value="52"/>
+        <Setter Property="Height"      Value="52"/>
+        <Setter Property="Tag"         Value="26"/>
+        <Setter Property="Padding"     Value="0"/>
+    </Style>
+
+    <!-- Back (transparent) -->
+    <Style x:Key="BackButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background"  Value="Transparent"/>
+        <Setter Property="Foreground"  Value="#F5F5F5"/>
+        <Setter Property="FontSize"    Value="14"/>
+        <Setter Property="Padding"     Value="10,4"/>
+        <Setter Property="Tag"         Value="8"/>
+    </Style>
+
+    <!-- ADB (green tint) -->
+    <Style x:Key="AdbButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background"  Value="#1a2e1a"/>
+        <Setter Property="Foreground"  Value="#22C55E"/>
+        <Setter Property="FontSize"    Value="12"/>
+        <Setter Property="Padding"     Value="12,5"/>
+        <Setter Property="Tag"         Value="8"/>
+    </Style>
+
+    <!-- Set IN / Set OUT inline links -->
+    <Style x:Key="SetMarkButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background"    Value="Transparent"/>
+        <Setter Property="Foreground"    Value="#06B6D4"/>
+        <Setter Property="FontSize"      Value="12"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding"       Value="0"/>
+        <Setter Property="Tag"           Value="0"/>
+    </Style>
+
+    <!-- TextBlock defaults -->
+    <Style TargetType="TextBlock">
+        <Setter Property="Foreground"  Value="#F5F5F5"/>
+        <Setter Property="FontFamily"  Value="Segoe UI"/>
+        <Setter Property="FontSize"    Value="13"/>
+        <Setter Property="Background"  Value="Transparent"/>
+    </Style>
+
+    <!-- SpinBox / TextBox -->
+    <Style TargetType="TextBox">
+        <Setter Property="Background"  Value="#262626"/>
+        <Setter Property="Foreground"  Value="#F5F5F5"/>
+        <Setter Property="BorderBrush" Value="#3a3a3a"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding"     Value="4,4"/>
+        <Setter Property="FontSize"    Value="13"/>
+    </Style>
+
+</ResourceDictionary>
